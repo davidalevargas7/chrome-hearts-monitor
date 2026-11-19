@@ -359,6 +359,7 @@ Appointment monitor:
 | Var | Default | Meaning |
 |-----|---------|---------|
 | `WW_LOCATION` | `chromehearts` | Waitwhile location shortname |
+| `WW_TIMEZONE` | unset | timezone override; otherwise the API timezone, falling back to `America/New_York` |
 | `WW_POLL_SECONDS` | `20` | target seconds between availability sweeps |
 | `WW_DAYS_AHEAD` | `21` | number of calendar days to request |
 | `WW_SERVICE_FILTER` | empty | optional service-ID or name-substring filter |
@@ -378,6 +379,39 @@ The Railway service uses `python ww_slots_monitor.py --loop`, its own Discord
 webhook, `WW_STATE_FILE=/data/ww_slots_miami.json`, and a dedicated volume at
 `/data`. Set `WW_BOOK_URL` to the service-selection URL above.
 
+### Las Vegas appointments
+
+Las Vegas uses `ww_slots_monitor.py` for “Chrome Hearts - Las Vegas Fontainebleau”
+at 2777 S Las Vegas Blvd. Its API timezone is null, so `WW_TIMEZONE` must override
+the New York fallback to keep future Pacific slots and label alerts with PST/PDT.
+NYC and Miami retain their existing timezone behavior when the override is unset.
+Las Vegas usually has availability, so openings may alert more frequently.
+
+The Railway service `chrome-hearts-lasvegas-appointments` uses this repository's
+`main` branch, custom start command `python ww_slots_monitor.py --loop`, and its
+own volume mounted at `/data`. Mirror Miami's settings with these variables:
+
+| Variable | Value / purpose |
+|----------|-----------------|
+| `NOTIFY_METHOD` | `discord` |
+| `DISCORD_WEBHOOK_URL` | Secret Las Vegas channel webhook; set only in Railway Variables |
+| `WW_LOCATION` | `lasvegas-fontaine` |
+| `WW_TIMEZONE` | `America/Los_Angeles` |
+| `WW_BOOK_URL` | `https://waitwhile.com/locations/lasvegas-fontaine/services?registration=booking` |
+| `WW_STATE_FILE` | `/data/ww_slots_lasvegas.json` |
+| `WW_POLL_SECONDS` | `20` |
+| `WW_DAYS_AHEAD` | `21` |
+| `WW_STARTUP_PING` | `1` |
+
+The first sweep seeds silently; later newly open slots trigger alerts. To verify
+locally without sending notifications or changing production state:
+
+```bash
+WW_LOCATION=lasvegas-fontaine WW_TIMEZONE=America/Los_Angeles \
+  WW_STATE_FILE="$(mktemp -d)/ww_slots_lasvegas.json" \
+  python ww_slots_monitor.py --seed
+```
+
 ### Los Angeles appointments
 
 Los Angeles books through Appointedd rather than Waitwhile, so
@@ -393,7 +427,7 @@ By default the service watches LA In-store only
 `python appointedd_slots_monitor.py --loop`, its own Discord webhook,
 `APPT_STATE_FILE=/data/appt_slots.json`, and a dedicated `/data` volume.
 
-To recreate either service, add this same GitHub repository as another Railway
+To recreate any appointment service, add this same GitHub repository as another Railway
 service, set its custom start command and variables, mount a separate volume at
 `/data`, and deploy. Each service seeds its initial state silently and sends its
 own online ping.

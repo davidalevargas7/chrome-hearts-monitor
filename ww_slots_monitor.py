@@ -35,6 +35,7 @@ Run modes:
 Key env vars:
     NOTIFY_METHOD=discord / DISCORD_WEBHOOK_URL=...   (see notifier.py)
     WW_LOCATION=chromehearts        # Waitwhile shortname (NY West Village)
+    WW_TIMEZONE=America/Los_Angeles # optional override of location timezone
     WW_STATE_FILE=/data/ww_slots.json
     WW_POLL_SECONDS=20              # one API request per sweep -> can be tight
     WW_DAYS_AHEAD=21                # how far ahead to watch
@@ -64,6 +65,7 @@ import requests
 
 API = "https://api.waitwhile.com/v2/public"
 LOCATION = os.environ.get("WW_LOCATION", "chromehearts")
+TIMEZONE = os.environ.get("WW_TIMEZONE", "").strip()
 BOOK_URL = os.environ.get(
     "WW_BOOK_URL", f"https://waitwhile.com/locations/{LOCATION}/time?registration=booking")
 STATE_FILE = Path(os.environ.get("WW_STATE_FILE", "ww_slots.json"))
@@ -110,13 +112,13 @@ def get_json(session: requests.Session, url: str, params: dict | None = None):
 def load_location(session: requests.Session) -> tuple[dict[str, str], ZoneInfo, str]:
     """Return (serviceId->name, tz, display name); safe fallbacks on failure."""
     services: dict[str, str] = {}
-    tz = ZoneInfo("America/New_York")
+    tz = ZoneInfo(TIMEZONE or "America/New_York")
     name = LOCATION
     data = get_json(session, f"{API}/locations/{LOCATION}")
     if isinstance(data, dict):
         name = data.get("name") or name
         try:
-            tz = ZoneInfo(data.get("timeZone") or "America/New_York")
+            tz = ZoneInfo(TIMEZONE or data.get("timeZone") or "America/New_York")
         except Exception:
             pass
         by_id = data.get("servicesById") or {}

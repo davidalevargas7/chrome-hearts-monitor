@@ -6,6 +6,7 @@ seen_products.json
 *.health.json
 ww_slots.json
 ww_slots_miami.json
+ww_slots_lasvegas.json
 appt_slots.json
 *.tmp
 
