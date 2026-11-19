@@ -412,6 +412,38 @@ WW_LOCATION=lasvegas-fontaine WW_TIMEZONE=America/Los_Angeles \
   python ww_slots_monitor.py --seed
 ```
 
+### Honolulu appointments
+
+Honolulu uses `ww_slots_monitor.py` for “Chrome Hearts - Honolulu” at
+2184 Kalakaua Ave. Its API timezone is null, so set `WW_TIMEZONE=Pacific/Honolulu`
+to keep upcoming Hawaii slots and label alerts with HST year-round. Hawaii has
+no daylight saving time.
+
+The Railway service `chrome-hearts-honolulu-appointments` mirrors Las Vegas:
+this repository's `main` branch, custom start command
+`python ww_slots_monitor.py --loop`, and its own volume mounted at `/data`.
+
+| Variable | Value / purpose |
+|----------|-----------------|
+| `NOTIFY_METHOD` | `discord` |
+| `DISCORD_WEBHOOK_URL` | Secret Honolulu channel webhook; set only in Railway Variables |
+| `WW_LOCATION` | `chromeheartshonolulu` |
+| `WW_TIMEZONE` | `Pacific/Honolulu` |
+| `WW_BOOK_URL` | `https://waitwhile.com/locations/chromeheartshonolulu/services?registration=booking` |
+| `WW_STATE_FILE` | `/data/ww_slots_honolulu.json` |
+| `WW_POLL_SECONDS` | `20` |
+| `WW_DAYS_AHEAD` | `21` |
+| `WW_STARTUP_PING` | `1` |
+
+The first sweep seeds silently; later newly open slots trigger alerts. Verify
+locally with temporary state and no notifications:
+
+```bash
+WW_LOCATION=chromeheartshonolulu WW_TIMEZONE=Pacific/Honolulu \
+  WW_STATE_FILE="$(mktemp -d)/ww_slots_honolulu.json" \
+  python ww_slots_monitor.py --seed
+```
+
 ### Los Angeles appointments
 
 Los Angeles books through Appointedd rather than Waitwhile, so

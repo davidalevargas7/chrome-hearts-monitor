@@ -62,6 +62,35 @@ class TimezoneTests(unittest.TestCase):
                     {date: {"avail": 1}}, "Chrome Hearts - Las Vegas Fontainebleau", tz)
                 self.assertIn(f"12:00 PM {label}", alert)
 
+    def test_honolulu_slot_two_hours_from_now_is_kept_and_alerted_in_hst(self):
+        # Hawaii stays UTC-10 in both winter and summer, unlike New York.
+        for month in (11, 7):
+            with self.subTest(month=month):
+                fixed_now = datetime(2026, month, 19, 19, tzinfo=timezone.utc)
+                slot_date = f"2026-{month:02d}-19T11:00"
+
+                class Clock(datetime):
+                    @classmethod
+                    def now(cls, tz=None):
+                        return fixed_now.astimezone(tz)
+
+                with patch.object(monitor, "TIMEZONE", "Pacific/Honolulu"), \
+                     patch.object(monitor, "get_json", return_value={
+                         "name": "Chrome Hearts - Honolulu", "timeZone": None}):
+                    services, tz, name = monitor.load_location(None)
+                self.assertEqual(tz.key, "Pacific/Honolulu")
+                self.assertEqual(fixed_now.astimezone(tz).strftime("%H:%M %Z"), "09:00 HST")
+                slots = [{"date": slot_date, "numAvailableSpots": 1}]
+                with patch.object(monitor, "datetime", Clock), \
+                     patch.object(monitor, "SERVICE_FILTER", []):
+                    current = monitor.open_slots(slots, services, tz)
+                    self.assertIn(slot_date, current)
+                    self.assertEqual(monitor.open_slots(
+                        slots, services, ZoneInfo("America/New_York")), {})
+                alert = monitor.build_alert(current, name, tz)
+                self.assertIn("Chrome Hearts - Honolulu", alert)
+                self.assertIn("11:00 AM HST", alert)
+
 
 if __name__ == "__main__":
     unittest.main()
