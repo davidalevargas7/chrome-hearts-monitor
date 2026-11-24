@@ -80,7 +80,6 @@ def _appointment_embed(body: str) -> dict:
 
     return embed
 
-
 def _send_discord(
     body: str,
     *,
@@ -94,9 +93,21 @@ def _send_discord(
         else _env("DISCORD_WEBHOOK_URL")
     )
 
-    # Only appointment alerts receive the custom embed.
-    if body.startswith("🟢 OPEN SLOT") and not suppress_embeds:
-        payload = {"embeds": [_appointment_embed(body)]}
+    is_appointment = (
+        body.startswith("🟢 OPEN SLOT") and not suppress_embeds
+    )
+
+    if is_appointment:
+        user_id = "550541673437069324"
+
+        payload = {
+            "content": f"<@{user_id}>",
+            "embeds": [_appointment_embed(body)],
+            "allowed_mentions": {
+                "parse": [],
+                "users": [user_id],
+            },
+        }
     else:
         payload = {"content": body[:2000]}
 
@@ -117,7 +128,6 @@ def _send_discord(
         raise _http_error("Discord webhook", resp)
 
     print("[discord] sent")
-
 
 def send_monitor_notification(body: str) -> None:
     url = os.environ.get("DISCORD_MONITOR_WEBHOOK_URL", "").strip()
