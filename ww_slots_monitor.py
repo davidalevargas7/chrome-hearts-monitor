@@ -183,15 +183,14 @@ def open_slots(slots: list[dict], services: dict[str, str],
         }
     return out
 
-
 def fmt_slot(iso_local: str, info: dict, tz: ZoneInfo) -> str:
-    when = datetime.strptime(iso_local, "%Y-%m-%dT%H:%M").replace(tzinfo=tz)
-    stamp = when.strftime("%a %b %d, %I:%M %p").replace(" 0", " ").lstrip("0")
-    svc = ""
-    if info.get("services"):
-        svc = " [" + ", ".join(f"{n}: {v}" for n, v in info["services"].items()) + "]"
-    return f"{stamp} {when.strftime('%Z')} — {info['avail']} spot(s){svc}"
+    when = datetime.strptime(
+        iso_local, "%Y-%m-%dT%H:%M"
+    ).replace(tzinfo=tz)
 
+    stamp = when.strftime("%a %b %d, %I:%M %p").replace(" 0", " ")
+
+    return f"{stamp} {when.strftime('%Z')} — {info['avail']} spot(s)"
 
 def build_alert(new: dict[str, dict], location_name: str, tz: ZoneInfo) -> str:
     lines = [f"\U0001f7e2 OPEN SLOT{'S' if len(new) > 1 else ''} — {location_name}"]
