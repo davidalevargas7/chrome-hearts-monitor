@@ -1,11 +1,5 @@
 
 #!/usr/bin/env python3
-"""
-Notification backends:
-  NOTIFY_METHOD=discord
-  NOTIFY_METHOD=twilio
-  NOTIFY_METHOD=email_sms
-"""
 
 from __future__ import annotations
 
@@ -31,53 +25,60 @@ def _env(name: str) -> str:
     return val
 
 
-def _appointment_embed(body: str) -> dict | None:
-    """Convert appointment alerts into a polished Discord embed."""
-
+def _appointment_embed(body: str) -> dict:
     lines = body.splitlines()
 
-    if not lines or not lines[0].startswith("🟢 OPEN SLOT"):
-        return None
+    location = "Chrome Hearts - New York West Village"
+    booking_url = ""
+    appointments = []
 
-    header = lines[0]
-    location = header.split(" — ", 1)[1] if " — " in header else "Chrome Hearts"
-
-    booking_url = None
-    appointment_lines = []
+    if lines:
+        first = lines[0]
+        if "—" in first:
+            location = first.split("—", 1)[1].strip()
 
     for line in lines[1:]:
-        if line.startswith("Book now:"):
-            booking_url = line.partition(":")[2].strip()
-        elif line.strip():
-            appointment_lines.append(line.strip())
+        line = line.strip()
 
-    if not booking_url:
-        return None
+        if line.startswith("•"):
+            appointments.append(line.lstrip("• ").strip())
 
-    description = "\n".join(appointment_lines)
-    description += f"\n\n[**BOOK YOUR APPOINTMENT →**]({booking_url})"
+        elif line.lower().startswith("book now:"):
+            booking_url = line.split(":", 1)[1].strip()
 
-    return {
-        "title": "APPOINTMENT AVAILABLE",
-        "url": booking_url,
+    description = "🟢 **A new appointment time just opened.**"
+
+    if appointments:
+        description += "\n\n**AVAILABLE TIMES**\n"
+        description += "\n".join(
+            f"• {item}" for item in appointments
+        )
+
+    if booking_url:
+        description += (
+            f"\n\n[**BOOK YOUR APPOINTMENT ↗**]({booking_url})"
+        )
+
+    embed = {
+        "title": "CHROME HEARTS | APPOINTMENT ALERT",
         "description": description[:4096],
-        "color": 0x292929,
+        "color": 0x202020,
         "fields": [
             {
                 "name": "LOCATION",
                 "value": location[:1024],
                 "inline": False,
-            },
-            {
-                "name": "STATUS",
-                "value": "🟢 New appointment slot detected",
-                "inline": False,
-            },
+            }
         ],
         "footer": {
-            "text": "CHROME HEARTS • WEST VILLAGE • LIVE MONITOR"
+            "text": "CHROME HEARTS APPOINTMENT MONITOR"
         },
     }
+
+    if booking_url:
+        embed["url"] = booking_url
+
+    return embed
 
 
 def _send_discord(
@@ -93,19 +94,14 @@ def _send_discord(
         else _env("DISCORD_WEBHOOK_URL")
     )
 
-    payload = {
-        "allowed_mentions": {"parse": []}
-    }
-
-    appointment_embed = None
-
-    if not suppress_embeds and webhook_url is None:
-        appointment_embed = _appointment_embed(body)
-
-    if appointment_embed:
-        payload["embeds"] = [appointment_embed]
+    # Only appointment alerts receive the custom embed.
+    if body.startswith("🟢 OPEN SLOT") and not suppress_embeds:
+        payload = {"embeds": [_appointment_embed(body)]}
     else:
-        payload["content"] = body[:2000]
+        payload = {"content": body[:2000]}
+
+    if webhook_url is not None:
+        payload["allowed_mentions"] = {"parse": []}
 
     if suppress_embeds:
         payload["flags"] = 1 << 2
@@ -124,8 +120,6 @@ def _send_discord(
 
 
 def send_monitor_notification(body: str) -> None:
-    """Send operational notices to the dedicated monitor-issues webhook."""
-
     url = os.environ.get("DISCORD_MONITOR_WEBHOOK_URL", "").strip()
 
     if not url:
@@ -134,7 +128,11 @@ def send_monitor_notification(body: str) -> None:
             "monitor notice was not sent"
         )
 
-    _send_discord(body, suppress_embeds=True, webhook_url=url)
+    _send_discord(
+        body,
+        suppress_embeds=True,
+        webhook_url=url,
+    )
 
 
 def _send_twilio(body: str) -> None:
@@ -181,7 +179,12 @@ def _send_email_sms(body: str) -> None:
     print("[email_sms] sent")
 
 
-def send_notification(body: str, *, suppress_embeds: bool = False) -> None:
+def send_notification(
+    body: str,
+    *,
+    suppress_embeds: bool = False,
+) -> None:
+
     method = os.environ.get("NOTIFY_METHOD", "discord").lower()
 
     if method == "discord":
@@ -200,6 +203,8 @@ def send_notification(body: str, *, suppress_embeds: bool = False) -> None:
 
 if __name__ == "__main__":
     send_notification(
-        sys.argv[1] if len(sys.argv) > 1
+        sys.argv[1]
+        if len(sys.argv) > 1
         else "test from chrome hearts monitor"
     )
+
